@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "light-gen-subz",
+  "version": "1.0.0",
+  "identifier": "com.sikander.light-gen-subz",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "light-gen-subz",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "rpm", "appimage", "app"],
+    "createUpdaterArtifacts": true,
+    "linux": {
+      "deb": {
+        "conflicts": ["light-gen-sub-z"],
+        "replaces": ["light-gen-sub-z"]
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyMzM0MEQwNEVENkU3OTIKUldTUzU5Wk8wRUF6RWthVkQ5SXQvQkpzYkxia3Z5VFlGbFdzelpTbGZjVFZLNXJGbG0yL2srYmEK",
+      "endpoints": [
+        "https://github.com/light-gen-subz/light-gen-subz/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

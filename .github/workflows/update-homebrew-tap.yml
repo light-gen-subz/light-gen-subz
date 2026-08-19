@@ -1,0 +1,154 @@
+name: Update Homebrew tap
+
+# workflow_run, not release: published. The release is created with GITHUB_TOKEN, and
+# GitHub does not start a workflow from an event that token produced — so a
+# release trigger here would never fire.
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish to the tap (e.g. v0.2.2)'
+        required: true
+
+env:
+  TAP_REPO: light-gen-subz/homebrew-tap
+  CASK_PATH: Casks/light-gen-subz.rb
+  CASK_TOKEN: light-gen-subz
+  APP_BUNDLE: light-gen-subz.app
+
+jobs:
+  # Renders the bumped cask but does not publish it. The cask body lives in the tap
+  # and is the single source of truth — this job only rewrites version and sha256,
+  # so the tap can never drift from a copy kept in this repository.
+  render:
+    name: Render bumped cask
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      # On a workflow_run the tag is head_branch: a tag push sets it to the tag name.
+      - name: Resolve version
+        id: version
+        env:
+          TAG_INPUT: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          [ -n "$TAG_INPUT" ] || { echo "::error::no tag resolved"; exit 1; }
+          case "$TAG_INPUT" in
+            v*) ;;
+            *) echo "::notice::$TAG_INPUT is not a version tag, nothing to publish"; exit 0 ;;
+          esac
+          echo "tag=$TAG_INPUT" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG_INPUT#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tap
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TAP_REPO }}
+          ssh-key: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
+          path: tap
+
+      # The assignment is on its own line: inside `echo "x=$(cmd)"` a failing cmd is
+      # masked by echo's exit status, which is how an empty sha256 can reach the tap
+      # with the job still green.
+      - name: Compute archive checksum
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -o app.tar.gz \
+            "https://github.com/${{ github.repository }}/releases/download/$TAG/light-gen-subz_aarch64.app.tar.gz"
+          SHA=$(sha256sum app.tar.gz | cut -d' ' -f1)
+          [[ "$SHA" =~ ^[a-f0-9]{64}$ ]] || { echo "::error::bad sha256: '$SHA'"; exit 1; }
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+
+      - name: Bump cask
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cask="tap/$CASK_PATH"
+          sed -i -E "s|^  version \".*\"$|  version \"$VERSION\"|" "$cask"
+          sed -i -E "s|^  sha256 \"[a-f0-9]{64}\"$|  sha256 \"$SHA\"|" "$cask"
+          grep -q "\"$VERSION\"" "$cask"
+          grep -q "$SHA" "$cask"
+          cat "$cask"
+
+      - name: Upload cask
+        uses: actions/upload-artifact@v4
+        with:
+          name: cask
+          path: tap/${{ env.CASK_PATH }}
+          if-no-files-found: error
+
+  # The gate. A cask that does not audit or does not install never reaches the tap,
+  # instead of being reported after users already have it.
+  verify:
+    name: Audit and install cask
+    needs: render
+    runs-on: macos-latest
+    steps:
+      - name: Download cask
+        uses: actions/download-artifact@v4
+        with:
+          name: cask
+
+      - name: Stage cask in a local tap
+        run: |
+          set -euo pipefail
+          brew tap-new --no-git local/verify
+          # tap-new only scaffolds Formula/, so the cask directory has to be made.
+          mkdir -p "$(brew --repository local/verify)/Casks"
+          cp "$(basename "$CASK_PATH")" "$(brew --repository local/verify)/Casks/"
+          brew trust --cask "local/verify/$CASK_TOKEN"
+
+      - name: Check style
+        run: brew style "local/verify/$CASK_TOKEN"
+
+      - name: Audit cask
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
+        run: brew audit --cask --online "local/verify/$CASK_TOKEN"
+
+      - name: Install cask
+        run: brew install --cask "local/verify/$CASK_TOKEN"
+
+      - name: Check the app was installed
+        run: test -d "/Applications/$APP_BUNDLE"
+
+      - name: Uninstall cask
+        run: brew uninstall --cask "local/verify/$CASK_TOKEN"
+
+  push:
+    name: Publish to tap
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TAP_REPO }}
+          ssh-key: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
+          path: tap
+
+      - name: Download cask
+        uses: actions/download-artifact@v4
+        with:
+          name: cask
+          path: incoming
+
+      - name: Commit and push
+        working-directory: tap
+        run: |
+          set -euo pipefail
+          cp "../incoming/$(basename "$CASK_PATH")" "$CASK_PATH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$CASK_PATH"
+          git diff --cached --quiet && echo "Cask already up to date" && exit 0
+          VERSION=$(sed -nE 's/^  version "(.*)"$/\1/p' "$CASK_PATH")
+          git commit -m "light-gen-subz $VERSION"
+          git push

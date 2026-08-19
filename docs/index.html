@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <title>LightGenSubz — offline subtitles from any video or audio</title>
+    <meta
+      name="description"
+      content="Turn a video or audio file into an .srt subtitle track, fully offline, powered by a local whisper.cpp model."
+    />
+    <style>
+      :root {
+        --bg: #121317;
+        --surface: #1b1d23;
+        --surface-raised: #22242b;
+        --border: #2b2e36;
+        --text: #f1f2f5;
+        --text-muted: #90939f;
+        --text-faint: #5b5e68;
+        --accent: #ffb454;
+        --accent-strong: #ff9d33;
+        --accent-ink: #4a2f08;
+        --success: #63d2a0;
+
+        --font-body: Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        --font-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 72px 24px 64px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .eyebrow-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      h1 {
+        font-size: clamp(32px, 5vw, 44px);
+        line-height: 1.1;
+        margin: 18px 0 12px;
+        letter-spacing: -0.01em;
+      }
+
+      .lede {
+        font-size: 17px;
+        color: var(--text-muted);
+        max-width: 46ch;
+        margin: 0 0 40px;
+      }
+
+      .features {
+        list-style: none;
+        margin: 0 0 48px;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+      }
+
+      .features li {
+        font-size: 13px;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+
+      .features strong {
+        display: block;
+        color: var(--text);
+        font-size: 14px;
+        margin-bottom: 2px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: -1px;
+      }
+
+      .tab {
+        appearance: none;
+        border: 1px solid var(--border);
+        border-bottom: none;
+        background: var(--surface);
+        color: var(--text-muted);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 10px 16px;
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+      }
+
+      .tab[aria-selected="true"] {
+        color: var(--text);
+        background: var(--surface-raised);
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 0 12px 12px 12px;
+        background: var(--surface-raised);
+        padding: 22px;
+      }
+
+      .panel[hidden] {
+        display: none;
+      }
+
+      .cmd-label {
+        display: block;
+        margin: 14px 0 2px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+
+      .cmd-row {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 4px 4px 4px 14px;
+        margin: 4px 0;
+      }
+
+      .cmd-row code {
+        flex: 1;
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        color: var(--success);
+        display: flex;
+        align-items: center;
+        overflow-x: auto;
+        white-space: pre;
+      }
+
+      .copy-btn {
+        appearance: none;
+        border: 1px solid transparent;
+        background: var(--accent);
+        color: var(--accent-ink);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 6px;
+        padding: 0 12px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .copy-btn:hover {
+        background: var(--accent-strong);
+      }
+
+      .panel-note {
+        font-size: 12.5px;
+        color: var(--text-faint);
+        margin: 14px 0 0;
+      }
+
+      .links {
+        margin-top: 48px;
+        display: flex;
+        gap: 20px;
+        font-size: 13.5px;
+        flex-wrap: wrap;
+      }
+
+      .section-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin: 40px 0 12px;
+      }
+
+      footer {
+        margin-top: 64px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--text-faint);
+      }
+
+      .lang-toggle {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        z-index: 50;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface-raised);
+        color: var(--text-muted);
+        font: 700 12px/1 var(--font-body);
+        letter-spacing: 0.04em;
+        cursor: pointer;
+      }
+      .lang-toggle:hover { color: var(--text); border-color: var(--accent); }
+
+      .panel-primary {
+        border-color: var(--accent);
+        background: linear-gradient(180deg, rgba(255, 180, 84, 0.07), transparent);
+      }
+      .badge-reco {
+        display: inline-block;
+        padding: 3px 10px;
+        margin-bottom: 12px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+      .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      /* ── Barre de navigation ── (structure commune aux six sites) */
+      .site-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: color-mix(in srgb, var(--bg) 85%, transparent);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .site-nav-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 24px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        gap: 32px;
+      }
+
+      .site-nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--text);
+      }
+      .site-nav-logo img { display: block; width: 28px; height: 28px; }
+
+      .site-nav-links {
+        display: flex;
+        gap: 24px;
+        margin-left: auto;
+        align-items: center;
+      }
+
+      .site-nav-links a {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .site-nav-links a:hover { color: var(--text); }
+
+      /* La bascule de langue rejoint la barre : elle flottait au-dessus du contenu. */
+      .site-nav .lang-toggle {
+        position: static;
+        margin: 0;
+      }
+
+      /* ── En-tête ── */
+      .site-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 96px 24px 72px;
+        text-align: center;
+      }
+
+      .site-hero-glow {
+        position: absolute;
+        top: -100px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 700px;
+        height: 500px;
+        max-width: 100vw;
+        background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 70%);
+        pointer-events: none;
+      }
+
+      .site-hero-inner {
+        position: relative;
+        max-width: 700px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .site-hero-logo { width: 96px; height: 96px; }
+
+      .site-hero-title {
+        font-size: clamp(1.9rem, 5vw, 3rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        margin: 0;
+        color: var(--text);
+      }
+
+      .site-hero-sub {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        max-width: 520px;
+        margin: 0;
+      }
+
+      .site-hero-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .site-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--accent);
+        color: #fff;
+        font-weight: 600;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        text-decoration: none;
+        transition: background 0.2s, transform 0.15s;
+      }
+      .site-btn-primary:hover { background: var(--accent-strong); transform: translateY(-1px); }
+
+      .site-btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-weight: 500;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        text-decoration: none;
+        transition: border-color 0.2s, background 0.2s;
+      }
+      .site-btn-ghost:hover { border-color: var(--accent); background: var(--surface-raised); }
+
+      .site-hero-platforms {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .site-platform-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface-raised);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 5px 14px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .site-platform-free {
+        color: #34d399;
+        border-color: #34d39930;
+        background: #34d3990d;
+      }
+
+      @media (max-width: 640px) {
+        .site-nav-links a:not(.site-nav-gh) { display: none; }
+        .site-hero { padding: 64px 20px 56px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-nav">
+      <div class="site-nav-inner">
+        <a href="#" class="site-nav-logo">
+          <img src="favicon.png" alt="LightGenSubz" />
+          <span>LightGenSubz</span>
+        </a>
+        <nav class="site-nav-links">
+        <a href="#install" data-fr="Installation" data-en="Install">Installation</a>
+        <a href="#uninstall" data-fr="Désinstallation" data-en="Uninstall">Désinstallation</a>
+        <a href="https://github.com/light-gen-subz/light-gen-subz" target="_blank" rel="noopener" class="site-nav-gh">GitHub</a>
+        </nav>
+        <button class="lang-toggle" id="langToggle" aria-label="Switch language">EN</button>
+      </div>
+    </header>
+
+    <section class="site-hero">
+      <div class="site-hero-inner">
+        <img src="favicon.png" alt="LightGenSubz" class="site-hero-logo" />
+        <h1 class="site-hero-title" data-fr="Des sous-titres, générés en local." data-en="Subtitles, generated locally.">Des sous-titres, générés en local.</h1>
+        <p class="site-hero-sub" data-fr="Transcrivez et traduisez n&rsquo;importe quelle vidéo ou audio en .srt, sans envoi, sans compte, sans cloud." data-en="Transcribe and translate any video or audio into .srt — no upload, no account, no cloud.">Transcrivez et traduisez n&rsquo;importe quelle vidéo ou audio en .srt, sans envoi, sans compte, sans cloud.</p>
+        <div class="site-hero-actions">
+          <a href="#install" class="site-btn-primary" data-fr="Télécharger" data-en="Download">Télécharger</a>
+          <a href="https://github.com/light-gen-subz/light-gen-subz" target="_blank" rel="noopener" class="site-btn-ghost"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg> GitHub</a>
+        </div>
+        <div class="site-hero-platforms">
+          <span class="site-platform-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg> macOS</span>
+          <span class="site-platform-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021C7.309.358 3.561 3.522 2.27 7.665c-.01.03-.019.06-.027.09C.594 9.73 0 11.89 0 14.024 0 19.983 5.04 24 10.63 24c1.57 0 3.1-.3 4.52-.84l-.012.006c.8-.3 1.56-.68 2.26-1.13A11.73 11.73 0 0 0 24 12.06C24 5.44 18.854.037 12.504 0zm-.218 2.375c5.16.09 9.12 4.18 9.12 9.295 0 2.77-1.19 5.27-3.08 7.01a9.71 9.71 0 0 1-6.83 2.75c-4.94 0-8.94-3.74-9.27-8.47l-.004-.09c.36-3.67 3.07-6.67 6.63-7.47.45-.1.91-.15 1.43-.02z"/></svg> Linux</span>
+          <span class="site-platform-badge site-platform-free" data-fr="100% Gratuit" data-en="100% Free">100% Gratuit</span>
+        </div>
+      </div>
+      <div class="site-hero-glow"></div>
+    </section>
+    <main class="wrap">
+      <ul class="features">
+        <li><strong data-fr="Hors ligne" data-en="Offline">Hors ligne</strong><span data-fr="Vos médias ne quittent jamais votre machine" data-en="Your media never leaves your machine">Vos médias ne quittent jamais votre machine</span></li>
+        <li><strong data-fr="Multilingue" data-en="Multilingual">Multilingue</strong><span data-fr="Détection automatique de la langue" data-en="Automatic language detection">Détection automatique de la langue</span></li>
+        <li><strong data-fr="Format standard" data-en="Standard output">Format standard</strong><span data-fr=".srt, lisible par tous les éditeurs" data-en=".srt, works in any editor">.srt, lisible par tous les éditeurs</span></li>
+        <li><strong data-fr="Natif" data-en="Native">Natif</strong><span data-fr="Application Tauri + Rust, légère et rapide" data-en="Small, fast Tauri + Rust app">Application Tauri + Rust, légère et rapide</span></li>
+        <li><strong data-fr="Transcription cloud en option" data-en="Optional cloud STT">Transcription cloud en option</strong><span data-fr="Groq, OpenAI, Deepgram, AssemblyAI" data-en="Groq, OpenAI, Deepgram, AssemblyAI">Groq, OpenAI, Deepgram, AssemblyAI</span></li>
+        <li><strong data-fr="Traduction en option" data-en="Optional translation">Traduction en option</strong><span data-fr="NLLB-200 local, DeepL, OpenAI, Google, Azure" data-en="Local NLLB-200, DeepL, OpenAI, Google, Azure">NLLB-200 local, DeepL, OpenAI, Google, Azure</span></li>
+      </ul>
+
+      <h2 id="install" class="section-title" data-fr="Installation" data-en="Install">Installation</h2>
+      <section class="panel panel-primary">
+        <span class="badge-reco" data-fr="Recommandé" data-en="Recommended">Recommandé</span>
+        <div class="cmd-row">
+          <code id="cmd-install">curl -fsSL https://raw.githubusercontent.com/light-gen-subz/light-gen-subz/main/install.sh | bash</code>
+          <button class="copy-btn" data-copy-target="cmd-install" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+        <div class="pills">
+          <span class="pill">macOS → Homebrew</span>
+          <span class="pill">Ubuntu / Debian → .deb</span>
+          <span class="pill" data-fr="Autres Linux → AppImage" data-en="Other Linux → AppImage">Autres Linux → AppImage</span>
+        </div>
+        <p class="panel-note" data-fr="Une seule commande pour les deux systèmes : elle détecte la plateforme et l’architecture. Sur macOS, Homebrew installe ffmpeg au passage ; sur Linux, ffmpeg doit être présent, avec glibc ≥ 2.38 (Ubuntu 24.04+, Debian 13+, Fedora 39+)." data-en="One command for both systems: it detects the platform and architecture. On macOS, Homebrew pulls in ffmpeg; on Linux, ffmpeg must already be installed, with glibc ≥ 2.38 (Ubuntu 24.04+, Debian 13+, Fedora 39+).">Une seule commande pour les deux systèmes : elle détecte la plateforme et l’architecture. Sur macOS, Homebrew installe ffmpeg au passage ; sur Linux, ffmpeg doit être présent, avec glibc ≥ 2.38 (Ubuntu 24.04+, Debian 13+, Fedora 39+).</p>
+      </section>
+
+
+      <section class="panel">
+        <p class="panel-note" style="margin: 0 0 4px">
+          <strong data-fr="Ou manuellement" data-en="Or manually">Ou manuellement</strong>
+        </p>
+        <span class="cmd-label">macOS</span>
+        <div class="cmd-row">
+          <code id="cmd-install-mac">brew install --cask light-gen-subz/tap/light-gen-subz</code>
+          <button class="copy-btn" data-copy-target="cmd-install-mac" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+        <span class="cmd-label">Linux (.deb)</span>
+        <div class="cmd-row">
+          <code id="cmd-install-deb">curl -fsSL -o light-gen-subz.deb "$(curl -fsSL https://api.github.com/repos/light-gen-subz/light-gen-subz/releases/latest | grep -o 'https://[^"]*_amd64\.deb' | head -1)" &amp;&amp; sudo apt install ./light-gen-subz.deb</code>
+          <button class="copy-btn" data-copy-target="cmd-install-deb" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+        <span class="cmd-label">Linux (AppImage)</span>
+        <div class="cmd-row">
+          <code id="cmd-install-appimage">mkdir -p ~/.local/bin &amp;&amp; curl -fsSL -o ~/.local/bin/light-gen-subz.AppImage "$(curl -fsSL https://api.github.com/repos/light-gen-subz/light-gen-subz/releases/latest | grep -o 'https://[^"]*_amd64\.AppImage' | head -1)" &amp;&amp; chmod +x ~/.local/bin/light-gen-subz.AppImage</code>
+          <button class="copy-btn" data-copy-target="cmd-install-appimage" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+      </section>
+
+      <h2 id="uninstall" class="section-title" data-fr="Désinstallation" data-en="Uninstall">Désinstallation</h2>
+      <section class="panel panel-primary">
+        <span class="badge-reco" data-fr="Recommandé" data-en="Recommended">Recommandé</span>
+        <div class="cmd-row">
+          <code id="cmd-uninstall">curl -fsSL https://raw.githubusercontent.com/light-gen-subz/light-gen-subz/main/uninstall.sh | bash</code>
+          <button class="copy-btn" data-copy-target="cmd-uninstall" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+        <p class="panel-note" data-fr="Retire l’application quelle que soit la façon dont elle a été installée. Vos réglages et les modèles téléchargés sont conservés." data-en="Removes the app whichever way it was installed. Your settings and downloaded models are kept.">Retire l’application quelle que soit la façon dont elle a été installée. Vos réglages et les modèles téléchargés sont conservés.</p>
+      </section>
+
+      <section class="panel">
+        <p class="panel-note" style="margin: 0 0 4px">
+          <strong data-fr="Ou manuellement" data-en="Or manually">Ou manuellement</strong>
+        </p>
+        <span class="cmd-label">macOS</span>
+        <div class="cmd-row">
+          <code id="cmd-uninstall-mac">brew uninstall --cask light-gen-subz</code>
+          <button class="copy-btn" data-copy-target="cmd-uninstall-mac" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+        <span class="cmd-label">Linux (.deb)</span>
+        <div class="cmd-row">
+          <code id="cmd-uninstall-deb">sudo apt remove light-gen-subz</code>
+          <button class="copy-btn" data-copy-target="cmd-uninstall-deb" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+        <span class="cmd-label">Linux (AppImage)</span>
+        <div class="cmd-row">
+          <code id="cmd-uninstall-appimage">rm ~/.local/bin/light-gen-subz.AppImage</code>
+          <button class="copy-btn" data-copy-target="cmd-uninstall-appimage" data-fr="Copier" data-en="Copy">Copier</button>
+        </div>
+        <p class="panel-note" data-fr="Pour retirer aussi les modèles téléchargés et les réglages, voir le README." data-en="To also remove downloaded models and settings, see the README.">Pour retirer aussi les modèles téléchargés et les réglages, voir le README.</p>
+      </section>
+
+      <div class="links">
+        <a href="https://github.com/light-gen-subz/light-gen-subz">Source on GitHub</a>
+        <a href="https://github.com/light-gen-subz/light-gen-subz/releases">All releases</a>
+        <a href="https://github.com/light-gen-subz/light-gen-subz#readme">Documentation</a>
+      </div>
+
+      <footer>LightGenSubz — MIT licensed.</footer>
+    </main>
+
+    <script>
+      // Le formateur HTML peut replier une commande longue sur deux lignes ; un
+      // textContent brut recopierait alors le retour à la ligne et l'indentation
+      // dans le presse-papiers. On aplatit toute suite d'espaces.
+      function commandText(el) {
+        return el.textContent.replace(/\s+/g, " ").trim();
+      }
+
+      // ── Bascule de langue ──
+      // Chaque texte porte ses deux versions en attributs ; on ne remplace que
+      // le contenu, jamais la structure.
+      let lang = localStorage.getItem('lc-lang') || 'fr';
+
+      function applyLang() {
+        document.documentElement.lang = lang;
+        document.querySelectorAll('[data-fr][data-en]').forEach((el) => {
+          el.textContent = el.dataset[lang];
+        });
+        document.getElementById('langToggle').textContent = lang === 'fr' ? 'EN' : 'FR';
+        document.title =
+          lang === 'fr'
+            ? 'LightGenSubz — Sous-titres générés en local'
+            : 'LightGenSubz — Subtitles generated locally';
+        const desc = document.querySelector('meta[name="description"]');
+        if (desc) {
+          desc.content =
+            lang === 'fr'
+              ? 'Générez des sous-titres .srt depuis une vidéo ou un audio, entièrement hors ligne, sur macOS et Linux.'
+              : 'Generate .srt subtitles from any video or audio, fully offline, on macOS and Linux.';
+        }
+      }
+
+      document.getElementById('langToggle').addEventListener('click', () => {
+        lang = lang === 'fr' ? 'en' : 'fr';
+        localStorage.setItem('lc-lang', lang);
+        applyLang();
+      });
+
+      applyLang();
+
+      // ── Copie des commandes ──
+      document.querySelectorAll('.copy-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const target = document.getElementById(btn.dataset.copyTarget);
+          await navigator.clipboard.writeText(commandText(target));
+          const original = btn.textContent;
+          btn.textContent = lang === 'fr' ? 'Copié' : 'Copied';
+          setTimeout(() => (btn.textContent = original), 1500);
+        });
+      });
+    </script>
+  </body>
+</html>

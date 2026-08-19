@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  # tauri-action names the bundles after the version in tauri.conf.json, while the
+  # tap workflow derives the version from the git tag. When they disagree the release
+  # publishes assets under a name the cask url cannot resolve, and the failure only
+  # surfaces after the GitHub release is already public.
+  check-version:
+    name: Check the tag matches the manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare the tag with tauri.conf.json and Cargo.toml
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          WANT="${TAG#v}"
+          CONF=$(python3 -c "import json;print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          CARGO=$(grep -m1 '^version = ' src-tauri/Cargo.toml | cut -d'"' -f2)
+          echo "tag=$WANT tauri.conf.json=$CONF Cargo.toml=$CARGO"
+          [ "$WANT" = "$CONF" ] || { echo "::error::tag $WANT does not match tauri.conf.json $CONF"; exit 1; }
+          [ "$WANT" = "$CARGO" ] || { echo "::error::tag $WANT does not match Cargo.toml $CARGO"; exit 1; }
+
+  release:
+    needs: [check-version]
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-24.04
+          - platform: macos-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            cmake \
+            clang \
+            libclang-dev
+
+      - name: Install macOS build dependencies
+        if: matrix.platform == 'macos-latest'
+        run: |
+          brew install cmake
+          echo "MACOSX_DEPLOYMENT_TARGET=10.15" >> "$GITHUB_ENV"
+          echo "CMAKE_OSX_DEPLOYMENT_TARGET=10.15" >> "$GITHUB_ENV"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "light-gen-subz ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
+
+  # La release reste en brouillon le temps de la construction : elle ne devient
+  # publique qu'une fois toutes les plateformes réussies, pour qu'une seule d'entre
+  # elles qui casse ne laisse jamais une release incomplète aux utilisateurs.
+  publish-release:
+    name: Publish GitHub Release
+    needs: [release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Mark release as latest
+        run: gh release edit "${{ github.ref_name }}" --draft=false --latest --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
