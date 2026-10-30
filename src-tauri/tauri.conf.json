@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LightGenSubz",
+  "version": "1.0.0",
+  "identifier": "com.sikander.light-gen-subz",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "LightGenSubz",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost",
+      "devCsp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1420 ws://localhost:1421"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "appimage",
+      "app"
+    ],
+    "createUpdaterArtifacts": true,
+    "linux": {
+      "deb": {
+        "conflicts": [
+          "light-gen-sub-z"
+        ],
+        "replaces": [
+          "light-gen-sub-z"
+        ],
+        "depends": [
+          "ffmpeg"
+        ]
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyMzM0MEQwNEVENkU3OTIKUldTUzU5Wk8wRUF6RWthVkQ5SXQvQkpzYkxia3Z5VFlGbFdzelpTbGZjVFZLNXJGbG0yL2srYmEK",
+      "endpoints": [
+        "https://github.com/light-gen-subz/light-gen-subz/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

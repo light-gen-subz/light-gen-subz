@@ -1,0 +1,15 @@
+# Advisories that were looked at and do not apply, with the reason. `cargo audit` runs in CI
+# from this folder.
+
+[advisories]
+ignore = [
+    # `zip` 4.x, pulled in by tauri-plugin-updater: extract() follows symlinks and keeps
+    # SUID bits. The plugin only calls it in its Windows installer (`extract_zip`, inside
+    # the `cfg(windows)` impl); LightGenSubz ships for macOS (tar.gz) and Linux (AppImage,
+    # deb), where the code is not compiled in. The `zip` feature of the plugin cannot be
+    # turned off: it also carries the tar.gz support the macOS updater needs.
+    # Remove these three lines when the plugin moves to zip >= 9.
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
+]

@@ -1,0 +1,180 @@
+/* The start screen of the suite: the same frame and recent list as LightCutVidz. */
+.home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: auto 0;
+  width: 100%;
+}
+
+.dropzone-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  /* Same size in every app of the suite, whatever the name inside. */
+  width: 340px;
+  height: 284px;
+  padding: 0 32px;
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.home--dragging .dropzone-frame {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.dropzone-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+.dropzone-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.dropzone-title-accent {
+  color: var(--accent);
+}
+
+.dropzone-subtitle {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.dropzone-or {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dropzone-btn {
+  padding: 10px 28px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.dropzone-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.dropzone-formats {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.recent {
+  width: min(520px, 90%);
+  margin-top: 18px;
+  text-align: left;
+}
+.recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.recent-head h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+}
+.recent-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.recent-clear:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.recent ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.recent-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+}
+.recent-open:hover {
+  border-color: var(--accent);
+}
+.recent-kind {
+  flex-shrink: 0;
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 5px;
+  color: var(--text-secondary);
+}
+.recent-name {
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-dir {
+  flex-shrink: 0;
+  max-width: 40%;
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.recent-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 0 8px;
+}
+.recent-remove:hover {
+  color: var(--danger);
+}
