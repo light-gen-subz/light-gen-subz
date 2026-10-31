@@ -7,6 +7,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Unreleased]
 
+### Modifié
+
+- Dépendances mises à jour vers leurs dernières versions compatibles.
+
 ## [1.0.0] - 2026-10-30
 
 ### Ajouté
