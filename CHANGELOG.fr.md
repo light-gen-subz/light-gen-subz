@@ -7,6 +7,12 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-02
+
+### Modifié
+
+- La barre de mise à jour est identique dans toutes les applications : même hauteur, mêmes libellés, mêmes boutons dans le même ordre.
+
 ## [1.0.1] - 2026-11-02
 
 ### Modifié
