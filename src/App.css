@@ -49,6 +49,11 @@ button {
   outline-offset: 2px;
 }
 
+/* Buttons show no focus ring. */
+button:focus-visible {
+  outline: none;
+}
+
 .app {
   display: flex;
   flex-direction: column;
