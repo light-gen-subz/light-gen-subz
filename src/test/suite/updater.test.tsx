@@ -167,7 +167,7 @@ describe("update banner", () => {
     fireEvent.click(screen.getByText("check now"));
     expect(downloadAndInstall).not.toHaveBeenCalled();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Update now" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Update and restart" }));
 
     await waitFor(() => expect(downloadAndInstall).toHaveBeenCalled());
     await waitFor(() => expect(mockRelaunch).toHaveBeenCalled());
@@ -184,7 +184,7 @@ describe("update banner", () => {
     await ready();
     fireEvent.click(screen.getByText("check now"));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Update now" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Update and restart" }));
 
     await waitFor(() => expect(mockRelaunch).toHaveBeenCalled());
   });
@@ -195,7 +195,7 @@ describe("update banner", () => {
     await ready();
     fireEvent.click(screen.getByText("check now"));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Update now" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Update and restart" }));
 
     expect(await screen.findByText("The update failed — try again later.")).toBeInTheDocument();
     expect(mockRelaunch).not.toHaveBeenCalled();

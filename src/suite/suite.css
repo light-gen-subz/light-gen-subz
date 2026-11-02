@@ -186,6 +186,8 @@ body,
   align-items: center;
   justify-content: center;
   gap: 12px;
+  box-sizing: border-box;
+  min-height: 37px;
   padding: 6px 24px;
   background: color-mix(in srgb, var(--accent) 15%, var(--bg-primary));
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
@@ -194,8 +196,13 @@ body,
   text-align: center;
 }
 .update-banner button {
-  padding: 3px 12px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 12px;
   font-size: 12px;
+  line-height: 1;
 }
 .update-notes {
   flex-basis: 100%;

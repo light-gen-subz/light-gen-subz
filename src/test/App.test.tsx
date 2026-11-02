@@ -768,7 +768,7 @@ describe("App — updates", () => {
     await act(async () => entry("Help", "Check for Updates…").action?.());
     expect(await screen.findByText("Version 9.9.9 is available.")).toBeInTheDocument();
     expect(downloadAndInstall).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Update now" }));
+    fireEvent.click(screen.getByRole("button", { name: "Update and restart" }));
 
     await waitFor(() => expect(downloadAndInstall).toHaveBeenCalled());
     await waitFor(() => expect(mockRelaunch).toHaveBeenCalled());
