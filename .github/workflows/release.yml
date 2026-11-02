@@ -1,0 +1,131 @@
+name: Release
+
+# Pushing a vX.Y.Z tag builds the installers, signs the updater artifacts,
+# publishes them with SHA256SUMS and bumps the Homebrew cask.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  create-release:
+    name: Create the release
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.release.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tag matches the app version
+        run: |
+          VERSION="${TAG#v}"
+          test "$(node -p "require('./src-tauri/tauri.conf.json').version")" = "$VERSION"
+          grep -m1 '^version' src-tauri/Cargo.toml | grep -q "\"$VERSION\""
+      - name: Create the release with the notes of both changelogs
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${TAG#v}"
+          node scripts/release-notes.mjs "$TAG" > notes.md
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "LightGenSubz $TAG" --notes-file notes.md
+          echo "release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq .id)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.target }})
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, kind: linux, args: '' }
+          - { os: macos-latest, target: aarch64-apple-darwin, kind: macos, args: '--target aarch64-apple-darwin' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.kind == 'macos' && 'aarch64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: ${{ matrix.target }}
+      - name: Install Linux dependencies
+        if: matrix.kind == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libgtk-3-dev rpm 
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          uploadUpdaterJson: true
+          args: ${{ matrix.args }}
+
+  checksums:
+    name: SHA256SUMS
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # install.sh and the in-app updater verify downloads against this file.
+      - name: Hash every installable file of the release
+        run: |
+          VERSION="${TAG#v}"
+          mkdir assets && cd assets
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" \
+            --pattern '*.deb' --pattern '*.rpm' --pattern '*.AppImage' --pattern '*.app.tar.gz'
+          sha256sum * > ../SHA256SUMS && mv ../SHA256SUMS .
+          cat SHA256SUMS
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" SHA256SUMS --clobber
+
+  update-tap:
+    name: Update the Homebrew tap
+    needs: checksums
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
+      - name: Bump the cask
+        run: |
+          VERSION="${TAG#v}"
+          CASK="Casks/light-gen-subz.rb"
+          gh release download "$TAG" -R "${GITHUB_REPOSITORY_OWNER}/light-gen-subz" --pattern '*.app.tar.gz'
+          SHA=$(sha256sum LightGenSubz_aarch64.app.tar.gz | cut -d' ' -f1)
+          sed -i -E "s|^  version \".*\"|  version \"$VERSION\"|" "$CASK"
+          sed -i -E "s|^  sha256 \".*\"|  sha256 \"$SHA\"|" "$CASK"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$CASK"
+          git diff --staged --quiet || git commit -m "light-gen-subz $VERSION"
+          git push
