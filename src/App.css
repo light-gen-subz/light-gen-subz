@@ -45,12 +45,6 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Buttons show no focus ring. */
-button:focus-visible {
   outline: none;
 }
 
