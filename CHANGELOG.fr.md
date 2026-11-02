@@ -7,9 +7,12 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-02
+
 ### Modifié
 
 - Dépendances mises à jour vers leurs dernières versions compatibles.
+- L'anneau de focus clavier est supprimé partout (boutons, champs, menus, curseurs, cases à cocher).
 
 ## [1.0.0] - 2026-10-30
 

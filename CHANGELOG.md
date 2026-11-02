@@ -7,9 +7,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-02
+
 ### Changed
 
 - Dependencies updated to their latest compatible versions.
+- The keyboard focus ring is gone everywhere (buttons, fields, menus, sliders, checkboxes).
 
 ## [1.0.0] - 2026-10-30
 
